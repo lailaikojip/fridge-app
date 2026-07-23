@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Signup</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <main class="container" style="max-width: 400px; margin-top: 60px;">
+    <h2>Create Admin Account</h2>
+
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="you@example.com">
+
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="********">
+
+    <button onclick="signup()">Sign Up</button>
+    <p id="message"></p>
+
+    <p>Already have an account? <a href="/static/login.html">Log in</a></p>
+  </main>
+
+  <script src="/static/api.js"></script>
+  <script>
+    async function signup() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const messageEl = document.getElementById("message");
+
+      const response = await apiFetch("      const response = await apithod: "POST",
+        body: JSON        body: mail, passw        body: JSON       nst d        body: JSON        body: mail, passw        body: JSON       nst d        body: JSON  da      en               body: JSON        body: mail, passw        body: JSON       n       messageEl.textContent = "Error        body: JSON        body: mai</script>
+</body>
+</html>

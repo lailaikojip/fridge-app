@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul><li><strong>Fridge App</strong></li></ul>
+      <ul><li><a href="#" onclick="logout()">Logout</a></li></ul>
+    </nav>
+
+    <h2>Create New Environment</h2>
+    <input type="text" id="envName" placeholder="e.g. HSBC Office Pantry">
+    <label for="threshold">Notification threshold (days)</label>
+    <input type="number" id="threshold" value="30">
+    <button onclick="createEnvironment()">Create</button>
+    <p id="createMessage"></p>
+
+    <hr>
+    <p><em>After creating an environment, note its ID below to use on other pages (inventory, ranking, settings).</em></p>
+  </main>
+
+  <script src="/static/api.js"></script>
+  <script>
+    requireLogin();
+
+    async function createEnvironment() {
+      const name = document.getElementById("envName")      const name = document.getElemd       const ocum   .get     nt      const name = alue);      const name = docu= do      const name = document.getElementById("envName")      const name = document.getElemd    en   create", {
+                                    :                                     :             : threshold })
+      });
+      const data = await response.json();
+
+      if (re      if (re      if (re      if (tContent = `Created! Environment ID: ${data.environment_id}`;
+        localSt        localSt        localSt        localSt        localSt  else {
+        messageEl.textContent = "Error: " + data.detail;
+      }
+    }
+  </script>
+</body>
+</html>

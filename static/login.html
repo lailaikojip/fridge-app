@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Login</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <main class="container" style="max-width: 400px; margin-top: 60px;">
+    <h2>Admin Login</h2>
+
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="you@example.com">
+
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="********">
+
+    <button onclick="login()">Log In</button>
+    <p id="message"></p>
+
+    <p>No account? <a href="/static/signup.html">Sign up</a></p>
+  </main>
+
+  <script src="/static/api.js"></script>
+  <script>
+    async function login() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const messageEl = document.getElementById("message");
+
+      const response = await apiFetch("/api/admin/login", {
+        method: "POST",
+        body:        bodyify({ email, passw        body:        boco        body:        bodyifso        body:        bodyify({ email, passw        body:        boco        body:        bodydo      tion.href        body:        bodyify({ email, passw        body:        boco te        body:        boeta        body:        bodyify({ emody>
+</html>
