@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Claim Item</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 400px; margin: auto; }
+    label { display: block; margin-top: 12px; font-weight: bold; }
+    input, select { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    button { margin-top: 20px; padding: 10px; width: 100%; background: #2b7a2b; color: white; border: none; border-radius: 4px; font-size: 16px; }
+    #message { margin-top: 16px; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h2>Claim This Sticker</h2>
+  <p>QR Code: <span id="qrIdDisplay"></span></p>
+
+  <label for="roomId">Room ID</label>
+  <input type="text" id="roomId" placeholder="e.g. 1303L">
+
+  <label for="itemName">Item Name</label>
+  <input type="text" id="itemName" placeholder="e.g. Instant noodles">
+
+  <label for="fridgeSelect">Which Fridge?</label>
+  <select id="fridgeSelect">
+    <option value="1">Fridge 1</option>
+    <option value="2">Fridge 2</option>
+  </select>
+
+  <button onclick="submitClaim()">Claim & Save</button>
+
+  <div id="message"></div>
+
+  <script>
+    // Read the qr_id from the URL, e.g. claim.html?qr=abc123
+    const params = new URLSearchParams(window.location.search);
+    const qrId = params.get("qr");
+    document.getElementById("qrIdDisplay").textContent = qrId;
+
+    async function submitClaim() {
+      const roomId = document.getElementById("roomId").value.trim();
+      const itemName = document.getElementById("itemName").value.trim();
+      const fridgeId = parseInt(document.getElementById("fridgeSelect").value);
+      const messageDiv = document.getElementById("message");
+
+      if (!roomId || !itemName) {
+        messageDiv.textContent = "Please fill in all fields.";
+        messageDiv.style.color = "red";
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            qr_id: qrId,
+            room_id: roomId,
+            item_name: itemName,
+            fridge_id: fridgeId
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          messageDiv.textContent = "Item claimed successfully!";
+          messageDiv.style.color = "green";
+        } else {
+          messageDiv.textContent = "Error: " + data.detail;
+          messageDiv.style.color = "red";
+        }
+      } catch (err) {
+        messageDiv.textContent = "Something went wrong. Try again.";
+        messageDiv.style.color = "red";
+      }
+    }
+  </script>
+
+</body>
+</html>
