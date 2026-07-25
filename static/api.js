@@ -1,17 +1,21 @@
-const API_BASE = "";
+var API_BASE = "";
 
-async function apiFetch(url, options = {}) {
-  const token = localStorage.getItem("token");
-  const headers = options.headers || {};
+async function apiFetch(url, options) {
+  options = options || {};
+  var token = localStorage.getItem("token");
+  var headers = options.headers || {};
   headers["Content-Type"] = "application/json";
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) {
+    headers["Authorization"] = "Bearer " + token;
+  }
+  options.headers = headers;
 
-  const response = await fetch(API_BASE + url, { ...options, headers });
+  var response = await fetch(API_BASE + url, options);
   return response;
 }
 
 function requireLogin() {
-  const token = localStorage.getItem("token");
+  var token = localStorage.getItem("token");
   if (!token) {
     window.location.href = "/static/login.html";
   }

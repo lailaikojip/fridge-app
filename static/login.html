@@ -13,7 +13,7 @@
     <input type="email" id="email" placeholder="you@example.com">
 
     <label for="password">Password</label>
-    <input type="password" id="password" placeholder="********">
+    <input type="password" id="password" placeholder="password">
 
     <button onclick="login()">Log In</button>
     <p id="message"></p>
@@ -24,11 +24,23 @@
   <script src="/static/api.js"></script>
   <script>
     async function login() {
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
-      const messageEl = document.getElementById("message");
+      var email = document.getElementById("email").value.trim();
+      var password = document.getElementById("password").value;
+      var messageEl = document.getElementById("message");
 
-      const response = await apiFetch("/api/admin/login", {
+      var response = await apiFetch("/api/admin/login", {
         method: "POST",
-        body:        bodyify({ email, passw        body:        boco        body:        bodyifso        body:        bodyify({ email, passw        body:        boco        body:        bodydo      tion.href        body:        bodyify({ email, passw        body:        boco te        body:        boeta        body:        bodyify({ emody>
+        body: JSON.stringify({ email: email, password: password })
+      });
+      var data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem("token", data.token);
+        window.location.href = "/static/dashboard.html";
+      } else {
+        messageEl.textContent = "Error: " + data.detail;
+      }
+    }
+  </script>
+</body>
 </html>

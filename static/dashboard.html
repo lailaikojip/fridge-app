@@ -13,14 +13,17 @@
     </nav>
 
     <h2>Create New Environment</h2>
+    <label for="envName">Environment Name</label>
     <input type="text" id="envName" placeholder="e.g. HSBC Office Pantry">
+
     <label for="threshold">Notification threshold (days)</label>
     <input type="number" id="threshold" value="30">
+
     <button onclick="createEnvironment()">Create</button>
     <p id="createMessage"></p>
 
     <hr>
-    <p><em>After creating an environment, note its ID below to use on other pages (inventory, ranking, settings).</em></p>
+    <p><em>After creating an environment, note its ID shown above to use on other pages.</em></p>
   </main>
 
   <script src="/static/api.js"></script>
@@ -28,13 +31,20 @@
     requireLogin();
 
     async function createEnvironment() {
-      const name = document.getElementById("envName")      const name = document.getElemd       const ocum   .get     nt      const name = alue);      const name = docu= do      const name = document.getElementById("envName")      const name = document.getElemd    en   create", {
-                                    :                                     :             : threshold })
-      });
-      const data = await response.json();
+      var name = document.getElementById("envName").value.trim();
+      var threshold = parseInt(document.getElementById("threshold").value);
+      var messageEl = document.getElementById("createMessage");
 
-      if (re      if (re      if (re      if (tContent = `Created! Environment ID: ${data.environment_id}`;
-        localSt        localSt        localSt        localSt        localSt  else {
+      var response = await apiFetch("/api/environments/create", {
+        method: "POST",
+        body: JSON.stringify({ name: name, notification_threshold_days: threshold })
+      });
+      var data = await response.json();
+
+      if (response.ok) {
+        messageEl.textContent = "Created! Environment ID: " + data.environment_id;
+        localStorage.setItem("environment_id", data.environment_id);
+      } else {
         messageEl.textContent = "Error: " + data.detail;
       }
     }
