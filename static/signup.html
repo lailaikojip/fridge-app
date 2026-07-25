@@ -13,7 +13,7 @@
     <input type="email" id="email" placeholder="you@example.com">
 
     <label for="password">Password</label>
-    <input type="password" id="password" placeholder="********">
+    <input type="password" id="password" placeholder="password">
 
     <button onclick="signup()">Sign Up</button>
     <p id="message"></p>
@@ -24,11 +24,13 @@
   <script src="/static/api.js"></script>
   <script>
     async function signup() {
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
-      const messageEl = document.getElementById("message");
+      var email = document.getElementById("email").value.trim();
+      var password = document.getElementById("password").value;
+      var messageEl = document.getElementById("message");
 
-      const response = await apiFetch("      const response = await apithod: "POST",
-        body: JSON        body: mail, passw        body: JSON       nst d        body: JSON        body: mail, passw        body: JSON       nst d        body: JSON  da      en               body: JSON        body: mail, passw        body: JSON       n       messageEl.textContent = "Error        body: JSON        body: mai</script>
+      var response = await apiFetch("/api/admin/signup", {
+        method: "POS   
+        body  JSON.stringi        body  JSON.striwo        body  JSON.stringi            body  JSON.stringi        body  JSON.striwo        body  JSON.stringi            bodyok      at     en        body  JSON.stringi        body  JSON.striwo        body  JSONls        body  JSON.stringi      t =        body  JSON.stringi        b   }
+  </script>
 </body>
 </html>
