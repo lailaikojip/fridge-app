@@ -1,8 +1,11 @@
 {
+  "builds": [
+    { "src": "main.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "main.py" }
+  ],
   "crons": [
-    {
-      "path": "/api/run-aging-check",
-      "schedule": "0 9 * * *"
-    }
+    { "path": "/api/run-aging-check", "schedule": "0 1 * * *" }
   ]
 }

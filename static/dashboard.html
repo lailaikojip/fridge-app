@@ -12,7 +12,12 @@
       <ul><li><a href="#" onclick="logout()">Logout</a></li></ul>
     </nav>
 
-    <h2>Create New Environment</h2>
+    <h2>Your Environments</h2>
+    <div id="envList">Loading...</div>
+
+    <hr>
+
+    <h3>Create New Environment</h3>
     <label for="envName">Environment Name</label>
     <input type="text" id="envName" placeholder="e.g. HSBC Office Pantry">
 
@@ -21,14 +26,41 @@
 
     <button onclick="createEnvironment()">Create</button>
     <p id="createMessage"></p>
-
-    <hr>
-    <p><em>After creating an environment, note its ID shown above to use on other pages.</em></p>
   </main>
 
   <script src="/static/api.js"></script>
   <script>
     requireLogin();
+
+    async function loadEnvironments() {
+      var listDiv = document.getElementById("envList");
+      var response = await apiFetch("/api/environments/mine");
+      var data = await response.json();
+
+      if (!response.ok) {
+        listDiv.innerHTML = "Error loading environments: " + data.detail;
+        return;
+      }
+
+      if (data.environments.length === 0) {
+        listDiv.innerHTML = "<p>You don't manage any environments yet. Create one below.</p>";
+        return;
+      }
+
+      var html = "";
+      for (var i = 0; i < data.environments.length; i++) {
+        var env = data.environments[i];
+        html += '<article style="cursor:pointer" onclick="goToEnvironment(' + env.environment_id + ')">';
+        html += '<strong>' + env.name + '</strong><br>';
+        html += '<small>ID: ' + env.environment_id + ' | Alert threshold: ' + env.notification_threshold_days + ' days</small>';
+        html += '</article>';
+      }
+      listDiv.innerHTML = html;
+    }
+
+    function goToEnvironment(id) {
+      window.location.href = "/static/environment.html?id=" + id;
+    }
 
     async function createEnvironment() {
       var name = document.getElementById("envName").value.trim();
@@ -42,12 +74,15 @@
       var data = await response.json();
 
       if (response.ok) {
-        messageEl.textContent = "Created! Environment ID: " + data.environment_id;
-        localStorage.setItem("environment_id", data.environment_id);
+        messageEl.textContent = "Created!";
+        document.getElementById("envName").value = "";
+        loadEnvironments();
       } else {
         messageEl.textContent = "Error: " + data.detail;
       }
     }
+
+    loadEnvironments();
   </script>
 </body>
 </html>
