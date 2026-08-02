@@ -54,9 +54,10 @@
       var data = await response.json();
 
       if (!response.ok) {
-        messageEl.textContent = "Error: " + data.detail;
-        return;
-      }
+  var errorText = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+  messageEl.textContent = "Error: " + errorText;
+  return;
+}
 
       messageEl.textContent = "Generated " + data.qr_ids.length + " codes.";
       grid.innerHTML = "";

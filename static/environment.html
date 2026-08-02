@@ -46,10 +46,11 @@
         "<p>Notification threshold: " + data.notification_threshold_days + " days</p>";
 
       navDiv.innerHTML =
-        '<a role="button" href="/static/inventory.html?env=' + environmentId + '">View Inventory</a> ' +
-        '<a role="button" href="/static/ranking.html?env=' + environmentId + '">Fridge Ranking</a> ' +
-        '<a role="button" href="/static/rooms.html?env=' + environmentId + '">Manage Rooms</a> ' +
-        '<a role="button" href="/static/settings.html?env=' + environmentId + '">Settings</a>';
+  '<a role="button" href="/static/inventory.html?env=' + environmentId + '">View Inventory</a> ' +
+  '<a role="button" href="/static/ranking.html?env=' + environmentId + '">Fridge Ranking</a> ' +
+  '<a role="button" href="/static/rooms.html?env=' + environmentId + '">Manage Rooms</a> ' +
+  '<a role="button" href="/static/generate-qr.html?env=' + environmentId + '">Generate QR Codes</a> ' +
+  '<a role="button" href="/static/settings.html?env=' + environmentId + '">Settings</a>';
     }
 
     loadEnvironmentInfo();
