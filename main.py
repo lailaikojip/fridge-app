@@ -597,3 +597,36 @@ def list_my_environments(admin_id: int = Depends (get_current_admin)):
         })
 
     return {"environments": environments}
+
+import secrets
+
+class GenerateQRRequest(BaseModel):
+    quantity: int
+
+@app.post("/api/environments/{environment_id}/qr-codes/generate")
+def generate_qr_codes(environment_id: int, data: GenerateQRRequest, admin_id: int = Depends(get_current_admin)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    check_admin_access(cursor, admin_id, environment_id)
+
+    if data.quantity < 1 or data.quantity > 100:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=400, detail="Quantity must be between 1 and 100")
+
+    generated_ids = []
+
+    for _ in range(data.quantity):
+        new_qr_id = secrets.token_urlsafe(6)  # short random unique string
+        cursor.execute(
+            "INSERT INTO qr_codes (qr_id, status, environment_id) VALUES (%s, 'unclaimed', %s);",
+            (new_qr_id, environment_id)
+        )
+        generated_ids.append(new_qr_id)
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return {"success": True, "qr_ids": generated_ids}
