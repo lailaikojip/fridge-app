@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Manage Rooms</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul><li><a id="backLink" href="#">&larr; Back to Environment</a></li></ul>
+      <ul><li><a href="#" onclick="logout()">Logout</a></li></ul>
+    </nav>
+
+    <h2>Bulk Import Rooms</h2>
+    <p>Paste one room per line, in this format: <code>room_id, phone_number</code></p>
+    <p>Example:<br><code>1303L, +85291234567<br>1305R, +85298765432</code></p>
+
+    <textarea id="roomsInput" rows="10" placeholder="1303L, +85291234567&#10;1305R, +85298765432"></textarea>
+
+    <button onclick="submitRooms()">Import Rooms</button>
+    <p id="message"></p>
+  </main>
+
+  <script src="/static/api.js"></script>
+  <script>
+    requireLogin();
+
+    var params = new URLSearchParams(window.location.search);
+    var environmentId = params.get("env");
+    document.getElementById("backLink").href = "/static/environment.html?id=" + environmentId;
+
+    function parseRoomsText(text) {
+      var lines = text.split("\n");
+      var rooms = [];
+
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (line === "") continue;
+
+        var parts = line.split(",");
+        if (parts.length !== 2) continue;
+
+        var roomId = parts[0].trim();
+        var phoneNumber = parts[1].trim();
+
+        if (roomId && phoneNumber) {
+          rooms.push({ room_id: roomId, phone_number: phoneNumber });
+        }
+      }
+
+      return rooms;
+    }
+
+    async function submitRooms() {
+      var messageEl = document.getElementById("message");
+      var text = document.getElementById("roomsInput").value;
+      var rooms = parseRoomsText(text);
+
+      if (rooms.length === 0) {
+        messageEl.textContent = "No valid rooms found. Check your format.";
+        return;
+      }
+
+      var response = await apiFetch("/api/environments/" + environmentId + "/rooms/bulk-import", {
+        method: "POST",
+        body: JSON.stringify({ rooms: rooms })
+      });
+      var data = await response.json();
+
+      if (response.ok) {
+        messageEl.textContent = "Success! Imported " + data.count + " room(s).";
+        document.getElementById("roomsInput").value = "";
+      } else {
+        messageEl.textContent = "Error: " + data.detail;
+      }
+    }
+  </script>
+</body>
+</html>

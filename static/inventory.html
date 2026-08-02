@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Inventory</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul><li><a id="backLink" href="#">&larr; Back to Environment</a></li></ul>
+      <ul><li><a href="#" onclick="logout()">Logout</a></li></ul>
+    </nav>
+
+    <h2>Inventory</h2>
+
+    <label for="fridgeFilter">Filter by Fridge</label>
+    <select id="fridgeFilter">
+      <option value="">All Fridges</option>
+      <option value="1">Fridge 1</option>
+      <option value="2">Fridge 2</option>
+    </select>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Fridge</th>
+          <th>Days Stored</th>
+        </tr>
+      </thead>
+      <tbody id="inventoryBody">
+        <tr><td colspan="3">Loading...</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <script src="/static/api.js"></script>
+  <script>
+    requireLogin();
+
+    var params = new URLSearchParams(window.location.search);
+    var environmentId = params.get("env");
+    document.getElementById("backLink").href = "/static/environment.html?id=" + environmentId;
+
+    async function loadInventory() {
+      var tbody = document.getElementById("inventoryBody");
+      var fridgeId = document.getElementById("fridgeFilter").value;
+
+      if (!environmentId) {
+        tbody.innerHTML = "<tr><td colspan='3'>No environment specified.</td></tr>";
+        return;
+      }
+
+      var url = "/api/inventory?environment_id=" + environmentId;
+      if (fridgeId) {
+        url += "&fridge_id=" + fridgeId;
+      }
+
+      var response = await apiFetch(url);
+      var data = await response.json();
+
+      if (!response.ok) {
+        tbody.innerHTML = "<tr><td colspan='3'>Error: " + data.detail + "</td></tr>";
+        return;
+      }
+
+      if (data.items.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='3'>No active items.</td></tr>";
+        return;
+      }
+
+      var html = "";
+      for (var i = 0; i < data.items.length; i++) {
+        var item = data.items[i];
+        html += "<tr>";
+        html += "<td>" + item.item_name + "</td>";
+        html += "<td>Fridge " + item.fridge_id + "</td>";
+        html += "<td>" + item.days_stored + "</td>";
+        html += "</tr>";
+      }
+      tbody.innerHTML = html;
+    }
+
+    document.getElementById("fridgeFilter").addEventListener("change", loadInventory);
+
+    loadInventory();
+  </script>
+</body>
+</html>

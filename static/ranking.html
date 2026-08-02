@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Fridge Ranking</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul><li><a id="backLink" href="#">&larr; Back to Environment</a></li></ul>
+      <ul><li><a href="#" onclick="logout()">Logout</a></li></ul>
+    </nav>
+
+    <h2>Fridge Full Ranking</h2>
+
+    <label for="fridgeSelect">Select Fridge</label>
+    <select id="fridgeSelect">
+      <option value="1">Fridge 1</option>
+      <option value="2">Fridge 2</option>
+    </select>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Room ID</th>
+          <th>Item Count</th>
+          <th>Total Days</th>
+          <th>Point</th>
+        </tr>
+      </thead>
+      <tbody id="rankingBody">
+        <tr><td colspan="4">Loading...</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <script src="/static/api.js"></script>
+  <script>
+    requireLogin();
+
+    var params = new URLSearchParams(window.location.search);
+    var environmentId = params.get("env");
+    document.getElementById("backLink").href = "/static/environment.html?id=" + environmentId;
+
+    async function loadRanking() {
+      var tbody = document.getElementById("rankingBody");
+      var fridgeId = document.getElementById("fridgeSelect").value;
+
+      if (!environmentId) {
+        tbody.innerHTML = "<tr><td colspan='4'>No environment specified.</td></tr>";
+        return;
+      }
+
+      var url = "/api/fridge-full-ranking?environment_id=" + environmentId + "&fridge_id=" + fridgeId;
+      var response = await apiFetch(url);
+      var data = await response.json();
+
+      if (!response.ok) {
+        tbody.innerHTML = "<tr><td colspan='4'>Error: " + data.detail + "</td></tr>";
+        return;
+      }
+
+      if (data.ranking.length === 0) {
+        tbody.innerHTML = "<tr><td colspan='4'>No active items in this fridge.</td></tr>";
+        return;
+      }
+
+      var html = "";
+      for (var i = 0; i < data.ranking.length; i++) {
+        var room = data.ranking[i];
+        html += "<tr>";
+        html += "<td>" + room.room_id + "</td>";
+        html += "<td>" + room.item_count + "</td>";
+        html += "<td>" + room.total_days + "</td>";
+        html += "<td>" + room.point + "</td>";
+        html += "</tr>";
+      }
+      tbody.innerHTML = html;
+    }
+
+    document.getElementById("fridgeSelect").addEventListener("change", loadRanking);
+
+    loadRanking();
+  </script>
+</body>
+</html>

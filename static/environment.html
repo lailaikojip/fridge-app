@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Environment</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul><li><a href="/static/dashboard.html">&larr; All Environments</a></li></ul>
+      <ul><li><a href="#" onclick="logout()">Logout</a></li></ul>
+    </nav>
+
+    <div id="envInfo">Loading...</div>
+
+    <div id="navLinks" style="margin-top: 20px;"></div>
+  </main>
+
+  <script src="/static/api.js"></script>
+  <script>
+    requireLogin();
+
+    var params = new URLSearchParams(window.location.search);
+    var environmentId = params.get("id");
+
+    async function loadEnvironmentInfo() {
+      var infoDiv = document.getElementById("envInfo");
+      var navDiv = document.getElementById("navLinks");
+
+      if (!environmentId) {
+        infoDiv.innerHTML = "No environment ID provided.";
+        return;
+      }
+
+      var response = await apiFetch("/api/environments/" + environmentId + "/settings");
+      var data = await response.json();
+
+      if (!response.ok) {
+        infoDiv.innerHTML = "Error: " + data.detail;
+        return;
+      }
+
+      infoDiv.innerHTML =
+        "<h2>" + data.name + "</h2>" +
+        "<p>Notification threshold: " + data.notification_threshold_days + " days</p>";
+
+      navDiv.innerHTML =
+        '<a role="button" href="/static/inventory.html?env=' + environmentId + '">View Inventory</a> ' +
+        '<a role="button" href="/static/ranking.html?env=' + environmentId + '">Fridge Ranking</a> ' +
+        '<a role="button" href="/static/rooms.html?env=' + environmentId + '">Manage Rooms</a> ' +
+        '<a role="button" href="/static/settings.html?env=' + environmentId + '">Settings</a>';
+    }
+
+    loadEnvironmentInfo();
+  </script>
+</body>
+</html>

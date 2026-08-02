@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Environment Settings</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <main class="container">
+    <nav>
+      <ul><li><a id="backLink" href="#">&larr; Back to Environment</a></li></ul>
+      <ul><li><a href="#" onclick="logout()">Logout</a></li></ul>
+    </nav>
+
+    <h2 id="envName">Settings</h2>
+
+    <h3>Notification Threshold</h3>
+    <label for="threshold">Days before an item is flagged as aging</label>
+    <input type="number" id="threshold">
+    <button onclick="updateThreshold()">Save Threshold</button>
+    <p id="thresholdMessage"></p>
+
+    <hr>
+
+    <h3>Add Another Admin</h3>
+    <p>The person must already have an account (they can sign up at <a href="/static/signup.html">/static/signup.html</a>).</p>
+    <label for="adminEmail">Their email</label>
+    <input type="email" id="adminEmail" placeholder="colleague@example.com">
+    <button onclick="addAdmin()">Add Admin</button>
+    <p id="adminMessage"></p>
+  </main>
+
+  <script src="/static/api.js"></script>
+  <script>
+    requireLogin();
+
+    var params = new URLSearchParams(window.location.search);
+    var environmentId = params.get("env");
+    document.getElementById("backLink").href = "/static/environment.html?id=" + environmentId;
+
+    async function loadSettings() {
+      var response = await apiFetch("/api/environments/" + environmentId + "/settings");
+      var data = await response.json();
+
+      if (response.ok) {
+        document.getElementById("envName").textContent = "Settings — " + data.name;
+        document.getElementById("threshold").value = data.notification_threshold_days;
+      } else {
+        document.getElementById("envName").textContent = "Error: " + data.detail;
+      }
+    }
+
+    async function updateThreshold() {
+      var messageEl = document.getElementById("thresholdMessage");
+      var threshold = parseInt(document.getElementById("threshold").value);
+
+      var response = await apiFetch("/api/environments/" + environmentId + "/settings", {
+        method: "PUT",
+        body: JSON.stringify({ notification_threshold_days: threshold })
+      });
+      var data = await response.json();
+
+      if (response.ok) {
+        messageEl.textContent = "Saved.";
+      } else {
+        messageEl.textContent = "Error: " + data.detail;
+      }
+    }
+
+    async function addAdmin() {
+      var messageEl = document.getElementById("adminMessage");
+      var email = document.getElementById("adminEmail").value.trim();
+
+      var response = await apiFetch("/api/environments/" + environmentId + "/add-admin", {
+        method: "POST",
+        body: JSON.stringify({ email: email })
+      });
+      var data = await response.json();
+
+      if (response.ok) {
+        messageEl.textContent = data.message;
+        document.getElementById("adminEmail").value = "";
+      } else {
+        messageEl.textContent = "Error: " + data.detail;
+      }
+    }
+
+    loadSettings();
+  </script>
+</body>
+</html>
