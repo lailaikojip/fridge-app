@@ -566,4 +566,34 @@ def run_aging_check(request: Request):
 
     results = send_whatsapp_for_environment_check()
     return {"results": results}
-   
+
+
+#SECTION: GET ALL OF MY ENVIRONMENTS
+@app.get("/api/environments/mine")
+def list_my_environments(admin_id: int = Depends (get_current_admin)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT environments.environment_id, environments.name, environments.notification_threshold_days
+        FROM environments
+        JOIN environment_admins ON environments.environment_id = environment_admins.environment_id
+        WHERE environment_admins.admin_id = %s
+        ORDER BY environments.environment_id ASC;
+        """,
+        (admin_id,)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    environments = []
+    for environment_id, name, threshold in rows:
+        environments.append({
+            "environment_id": environment_id,
+            "name": name,
+            "notification_threshold_days": threshold
+        })
+
+    return {"environments": environments}
