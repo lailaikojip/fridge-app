@@ -1,87 +1,90 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Generate QR Codes</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <style>
-    .qr-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 20px; }
-    .qr-item { border: 1px solid #ccc; padding: 10px; text-align: center; width: 160px; }
-    .qr-item canvas { width: 140px; height: 140px; }
-    .qr-item p { font-size: 12px; word-break: break-all; margin: 4px 0 0; }
-    @media print {
-      nav, #controls { display: none; }
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Generate QR Codes</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+.qr-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 20px; }
+.qr-item { border: 1px solid #ccc; padding: 10px; text-align: center; width: 160px; }
+.qr-item canvas, .qr-item img { width: 140px; height: 140px; }
+.qr-item p { font-size: 12px; word-break: break-all; margin: 4px 0 0; }
+@media print {
+nav, #controls { display: none; }
+}
+</style>
 </head>
 <body>
-  <main class="container">
-    <nav>
-      <ul><li><a id="backLink" href="#">&larr; Back to Environment</a></li></ul>
-      <ul><li><a href="#" onclick="logout()">Logout</a></li></ul>
-    </nav>
+<main class="container">
+<nav>
+<ul><li><a id="backLink" href="#">&larr; Back to Environment</a></li></ul>
+<ul><li><a href="#" onclick="logout()">Logout</a></li></ul>
+</nav>
 
-    <div id="controls">
-      <h2>Generate QR Codes</h2>
-      <label for="quantity">How many stickers?</label>
-      <input type="number" id="quantity" value="10" min="1" max="100">
-      <button onclick="generateCodes()">Generate</button>
-      <button onclick="window.print()">Print This Page</button>
-      <p id="message"></p>
-    </div>
+<div id="controls">
+<h2>Generate QR Codes</h2>
+<label for="quantity">How many stickers?</label>
+<input type="number" id="quantity" value="10" min="1" max="100">
+<button onclick="generateCodes()">Generate</button>
+<button onclick="window.print()">Print This Page</button>
+<p id="message"></p>
+</div>
 
-    <div class="qr-grid" id="qrGrid"></div>
-  </main>
+<div class="qr-grid" id="qrGrid"></div>
+</main>
 
-  <script src="/static/api.js"></script>
-  <script>
-    requireLogin();
+<script src="/static/api.js"></script>
+<script>
+requireLogin();
 
-    var params = new URLSearchParams(window.location.search);
-    var environmentId = params.get("env");
-    document.getElementById("backLink").href = "/static/environment.html?id=" + environmentId;
+var params = new URLSearchParams(window.location.search);
+var environmentId = params.get("env");
+document.getElementById("backLink").href = "/static/environment.html?id=" + environmentId;
 
-    async function generateCodes() {
-      var messageEl = document.getElementById("message");
-      var quantity = parseInt(document.getElementById("quantity").value);
-      var grid = document.getElementById("qrGrid");
+async function generateCodes() {
+  var messageEl = document.getElementById("message");
+  var quantity = parseInt(document.getElementById("quantity").value);
+  var grid = document.getElementById("qrGrid");
 
-      var response = await apiFetch("/api/environments/" + environmentId + "/qr-codes/generate", {
-        method: "POST",
-        body: JSON.stringify({ quantity: quantity })
-      });
-      var data = await response.json();
+  var response = await apiFetch("/api/environments/" + environmentId + "/qr-codes/generate", {
+    method: "POST",
+    body: JSON.stringify({ quantity: quantity })
+  });
+  var data = await response.json();
 
-      if (!response.ok) {
-  var errorText = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
-  messageEl.textContent = "Error: " + errorText;
-  return;
+  if (!response.ok) {
+    var errorText = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+    messageEl.textContent = "Error: " + errorText;
+    return;
+  }
+
+  messageEl.textContent = "Generated " + data.qr_ids.length + " codes.";
+  grid.innerHTML = "";
+
+  for (var i = 0; i < data.qr_ids.length; i++) {
+    var qrId = data.qr_ids[i];
+    var url = window.location.origin + "/static/lookup.html?qr=" + qrId;
+    var item = document.createElement("div");
+    item.className = "qr-item";
+
+    var qrDiv = document.createElement("div");
+    item.appendChild(qrDiv);
+
+    var label = document.createElement("p");
+    label.textContent = qrId;
+    item.appendChild(label);
+
+    grid.appendChild(item);
+
+    new QRCode(qrDiv, {
+      text: url,
+      width: 140,
+      height: 140
+    });
+  }
 }
-
-      messageEl.textContent = "Generated " + data.qr_ids.length + " codes.";
-      grid.innerHTML = "";
-
-      for (var i = 0; i < data.qr_ids.length; i++) {
-        var qrId = data.qr_ids[i];
-        var url = window.location.origin + "/static/lookup.html?qr=" + qrId;
-
-        var item = document.createElement("div");
-        item.className = "qr-item";
-
-        var canvas = document.createElement("canvas");
-        item.appendChild(canvas);
-
-        var label = document.createElement("p");
-        label.textContent = qrId;
-        item.appendChild(label);
-
-        grid.appendChild(item);
-
-        QRCode.toCanvas(canvas, url, { width: 140 });
-      }
-    }
-  </script>
+</script>
 </body>
 </html>
 
