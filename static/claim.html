@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Claim Item</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <main class="container" style="max-width: 400px; margin-top: 40px;">
+    <h2>Claim This Sticker</h2>
+    <p>QR Code: <span id="qrIdDisplay"></span></p>
+
+    <label for="roomId">Room ID</label>
+    <input type="text" id="roomId" placeholder="e.g. 1303L">
+
+    <label for="itemName">Item Name</label>
+    <input type="text" id="itemName" placeholder="e.g. Instant noodles">
+
+    <label for="fridgeSelect">Which Fridge?</label>
+    <select id="fridgeSelect">
+      <option value="1">Fridge 1</option>
+      <option value="2">Fridge 2</option>
+    </select>
+
+    <button onclick="submitClaim()">Claim & Save</button>
+    <p id="message"></p>
+  </main>
+
+  <script>
+    var params = new URLSearchParams(window.location.search);
+    var qrId = params.get("qr");
+    document.getElementById("qrIdDisplay").textContent = qrId;
+
+    async function submitClaim() {
+      var roomId = document.getElementById("roomId").value.trim();
+      var itemName = document.getElementById("itemName").value.trim();
+      var fridgeId = parseInt(document.getElementById("fridgeSelect").value);
+      var messageEl = document.getElementById("message");
+
+      if (!roomId || !itemName) {
+        messageEl.textContent = "Please fill in all fields.";
+        return;
+      }
+
+      var response = await fetch("/api/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          qr_id: qrId,
+          room_id: roomId,
+          item_name: itemName,
+          fridge_id: fridgeId
+        })
+      });
+      var data = await response.json();
+
+      if (response.ok) {
+        messageEl.textContent = "Item claimed successfully!";
+      } else {
+        messageEl.textContent = "Error: " + data.detail;
+      }
+    }
+  </script>
+</body>
+</html>
