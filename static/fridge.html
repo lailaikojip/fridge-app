@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Fridge</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+  <main class="container" style="max-width: 500px; margin-top: 30px;">
+    <h2 id="fridgeTitle">Fridge</h2>
+
+    <h3>Currently Inside</h3>
+    <div id="itemsList">Loading...</div>
+
+    <hr>
+
+    <h3>Add an Item</h3>
+    <label for="roomId">Room ID</label>
+    <input type="text" id="roomId" placeholder="e.g. 1303L">
+
+    <label for="itemName">Item Name</label>
+    <input type="text" id="itemName" placeholder="e.g. Instant noodles">
+
+    <button onclick="addItem()">Add to Fridge</button>
+    <p id="addMessage"></p>
+  </main>
+
+  <script>
+    var params = new URLSearchParams(window.location.search);
+    var fridgeId = params.get("fridge");
+    var environmentId = params.get("env");
+
+    document.getElementById("fridgeTitle").textContent = "Fridge " + fridgeId;
+
+    async function loadItems() {
+      var listDiv = document.getElementById("itemsList");
+
+      if (!fridgeId || !environmentId) {
+        listDiv.innerHTML = "<p>Missing fridge or environment info in the link.</p>";
+        return;
+      }
+
+      var response = await fetch("/api/fridge-items?environment_id=" + environmentId + "&fridge_id=" + fridgeId);
+      var data = await response.json();
+
+      if (!response.ok) {
+        listDiv.innerHTML = "<p>Error loading items.</p>";
+        return;
+      }
+
+      if (data.items.length === 0) {
+        listDiv.innerHTML = "<p>Nothing in here right now.</p>";
+        return;
+      }
+
+      var html = "";
+      for (var i = 0; i < data.items.length; i++) {
+        var item = data.items[i];
+        html += "<article>";
+        html += "<strong>" + item.item_name + "</strong> — Room " + item.room_id + "<br>";
+        html += "<small>" + item.days_stored + " day(s) stored</small><br>";
+        html += "<button onclick=\"removeItem(" + item.item_id + ")\">Remove</button>";
+        html += "</article>";
+      }
+      listDiv.innerHTML = html;
+    }
+
+    async function removeItem(itemId) {
+      var response = await fetch("/api/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_id: itemId })
+      });
+
+      if (response.ok) {
+        loadItems();
+      } else {
+        alert("Failed to remove item.");
+      }
+    }
+
+    async function addItem() {
+      var roomId = document.getElementById("roomId").value.trim();
+      var itemName = document.getElementById("itemName").value.trim();
+      var messageEl = document.getElementById("addMessage");
+
+      if (!roomId || !itemName) {
+        messageEl.textContent = "Please fill in both fields.";
+        return;
+      }
+
+      var response = await fetch("/api/items/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          environment_id: parseInt(environmentId),
+          fridge_id: parseInt(fridgeId),
+          room_id: roomId,
+          item_name: itemName
+        })
+      });
+      var data = await response.json();
+
+      if (response.ok) {
+        messageEl.textContent = "Added!";
+        document.getElementById("roomId").value = "";
+        document.getElementById("itemName").value = "";
+        loadItems();
+      } else {
+        messageEl.textContent = "Error: " + data.detail;
+      }
+    }
+
+    loadItems();
+  </script>
+</body>
+</html>

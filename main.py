@@ -1,4 +1,3 @@
-#build fastapi app with claim endpoint
 import os
 from fastapi import FastAPI, HTTPException, Request, Header, Depends
 from pydantic import BaseModel
@@ -9,36 +8,40 @@ from typing import Optional, List
 from notifications import send_whatsapp_alert
 from fastapi.staticfiles import StaticFiles
 
-import jwt 
+import jwt
 import bcrypt
+
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 CRON_SECRET = os.getenv("CRON_SECRET")
 JWT_SECRET = os.getenv("JWT_SECRET")
 
+
 def get_connection():
     return psycopg2.connect(DATABASE_URL)
 
+
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
-# What this does: tells FastAPI "anything requested under /static/... should be served directly as a file from my local static/ folder" 
-# — this is how your HTML page becomes accessible via a URL at all.
-#class define shape of data of the claim endpoint
 
-#SECTION 2: Password hashing helpers
-def hash_password(password:str) -> str:
+
+# ---------- Password hashing helpers ----------
+def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
 
 def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode(), password_hash.encode())
 
-#SECTION 3: JWT TOKEN HELPERS
+
+# ---------- JWT token helpers ----------
 def create_token(admin_id: int) -> str:
     payload = {
         "admin_id": admin_id,
-        "exp": datetime.utcnow() + timedelta(days=7)  # token valid 7 days
+        "exp": datetime.utcnow() + timedelta(days=7)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+
 
 def get_current_admin(authorization: str = Header(...)) -> int:
     try:
@@ -48,10 +51,21 @@ def get_current_admin(authorization: str = Header(...)) -> int:
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or missing token")
 
-#SECTION 4: ADMIN SIGNUP + LOGIN 
+
+def check_admin_access(cursor, admin_id: int, environment_id: int):
+    cursor.execute(
+        "SELECT 1 FROM environment_admins WHERE admin_id = %s AND environment_id = %s;",
+        (admin_id, environment_id)
+    )
+    if cursor.fetchone() is None:
+        raise HTTPException(status_code=403, detail="You do not have access to this environment")
+
+
+# ---------- Admin signup + login ----------
 class SignupRequest(BaseModel):
     email: str
     password: str
+
 
 @app.post("/api/admin/signup")
 def signup(data: SignupRequest):
@@ -83,6 +97,7 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+
 @app.post("/api/admin/login")
 def login(data: LoginRequest):
     conn = get_connection()
@@ -104,10 +119,12 @@ def login(data: LoginRequest):
     token = create_token(admin_id)
     return {"success": True, "token": token}
 
-#SECTION 5: ENVIRONMENT CREATION + ADD ADMIN
+
+# ---------- Environment creation + admin management ----------
 class CreateEnvironmentRequest(BaseModel):
     name: str
     notification_threshold_days: Optional[int] = 30
+
 
 @app.post("/api/environments/create")
 def create_environment(data: CreateEnvironmentRequest, admin_id: int = Depends(get_current_admin)):
@@ -132,17 +149,39 @@ def create_environment(data: CreateEnvironmentRequest, admin_id: int = Depends(g
     return {"success": True, "environment_id": environment_id}
 
 
-def check_admin_access(cursor, admin_id: int, environment_id: int):
+@app.get("/api/environments/mine")
+def list_my_environments(admin_id: int = Depends(get_current_admin)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     cursor.execute(
-        "SELECT 1 FROM environment_admins WHERE admin_id = %s AND environment_id = %s;",
-        (admin_id, environment_id)
+        """
+        SELECT environments.environment_id, environments.name, environments.notification_threshold_days
+        FROM environments
+        JOIN environment_admins ON environments.environment_id = environment_admins.environment_id
+        WHERE environment_admins.admin_id = %s
+        ORDER BY environments.environment_id ASC;
+        """,
+        (admin_id,)
     )
-    if cursor.fetchone() is None:
-        raise HTTPException(status_code=403, detail="You do not have access to this environment")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    environments = []
+    for environment_id, name, threshold in rows:
+        environments.append({
+            "environment_id": environment_id,
+            "name": name,
+            "notification_threshold_days": threshold
+        })
+
+    return {"environments": environments}
 
 
 class AddAdminRequest(BaseModel):
     email: str
+
 
 @app.post("/api/environments/{environment_id}/add-admin")
 def add_admin(environment_id: int, data: AddAdminRequest, admin_id: int = Depends(get_current_admin)):
@@ -169,9 +208,10 @@ def add_admin(environment_id: int, data: AddAdminRequest, admin_id: int = Depend
     cursor.close()
     conn.close()
 
-    return {"success": True, "message": f"{data.email} added as admin"}
+    return {"success": True, "message": data.email + " added as admin"}
 
-#SECTION 6: ENVIRONMENT SETTINGS (BULK ROOM/PEOPLE IMPORT + VIEW THRESHOLD)
+
+# ---------- Environment settings + room bulk import ----------
 @app.get("/api/environments/{environment_id}/settings")
 def get_settings(environment_id: int, admin_id: int = Depends(get_current_admin)):
     conn = get_connection()
@@ -197,6 +237,7 @@ def get_settings(environment_id: int, admin_id: int = Depends(get_current_admin)
 class UpdateSettingsRequest(BaseModel):
     notification_threshold_days: int
 
+
 @app.put("/api/environments/{environment_id}/settings")
 def update_settings(environment_id: int, data: UpdateSettingsRequest, admin_id: int = Depends(get_current_admin)):
     conn = get_connection()
@@ -220,8 +261,10 @@ class RoomEntry(BaseModel):
     room_id: str
     phone_number: str
 
+
 class BulkImportRequest(BaseModel):
     rooms: List[RoomEntry]
+
 
 @app.post("/api/environments/{environment_id}/rooms/bulk-import")
 def bulk_import_rooms(environment_id: int, data: BulkImportRequest, admin_id: int = Depends(get_current_admin)):
@@ -246,139 +289,46 @@ def bulk_import_rooms(environment_id: int, data: BulkImportRequest, admin_id: in
 
     return {"success": True, "count": len(data.rooms)}
 
-# SECTION 7: RETROFIT - CLAIM REQUEST
-class ClaimRequest(BaseModel):
-    qr_id: str
+
+# ---------- Items: add / remove / list per fridge ----------
+class AddItemRequest(BaseModel):
+    environment_id: int
+    fridge_id: int
     room_id: str
     item_name: str
-    fridge_id: int
 
-@app.post("/api/claim")
-def claim_item(data: ClaimRequest):
+
+@app.post("/api/items/add")
+def add_item(data: AddItemRequest):
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Step 1: Check the QR code exists and is unclaimed
-    cursor.execute(
-        "SELECT status, environment_id FROM qr_codes WHERE qr_id = %s;",
-        (data.qr_id,)
-    )
-    qr_row = cursor.fetchone()
-
-    if qr_row is None:
-        cursor.close()
-        conn.close()
-        raise HTTPException(status_code=404, detail="QR code not found")
-
-    status, environment_id = qr_row
-
-    if status != "unclaimed":
-        cursor.close()
-        conn.close()
-        raise HTTPException(status_code=400, detail="This QR code cannot be claimed")
-    
-# check room exists + belong to same environment as QR 
     cursor.execute(
         "SELECT room_id FROM rooms WHERE room_id = %s AND environment_id = %s;",
-        (data.room_id, environment_id)
+        (data.room_id, data.environment_id)
     )
-
     if cursor.fetchone() is None:
         cursor.close()
         conn.close()
         raise HTTPException(status_code=400, detail="Room ID not found in this environment")
 
     cursor.execute(
-        "SELECT fridge_id FROM fridges WHERE fridge_id = %s AND environment_id = %s;",
-        (data.fridge_id, environment_id)
-    )
-    if cursor.fetchone() is None:
-        cursor.close()
-        conn.close()
-        raise HTTPException(status_code=400, detail="Fridge not found in this environment")
-
-    cursor.execute(
         """
-        INSERT INTO items (qr_id, room_id, fridge_id, item_name, date_added, environment_id)
-        VALUES (%s, %s, %s, %s, NOW(), %s);
+        INSERT INTO items (room_id, fridge_id, item_name, date_added, environment_id)
+        VALUES (%s, %s, %s, NOW(), %s);
         """,
-        (data.qr_id, data.room_id, data.fridge_id, data.item_name, environment_id)
+        (data.room_id, data.fridge_id, data.item_name, data.environment_id)
     )
-
-    cursor.execute("UPDATE qr_codes SET status = 'claimed' WHERE qr_id = %s;", (data.qr_id,))
-
     conn.commit()
     cursor.close()
     conn.close()
 
-    return {"success": True, "message": "Item claimed successfully"}
-   
+    return {"success": True}
 
-#SECTION 8: LOOKUP + REMOVE 
-@app.get("/api/lookup/{qr_id}")
-def lookup_qr(qr_id: str):
-    conn = get_connection()
-    cursor = conn.cursor()
 
-    #STEP 1: check QR code exists + get its status 
-    cursor.execute(
-        "SELECT status FROM qr_codes WHERE qr_id = %s;",
-        (qr_id,)
-    )
-    qr_row = cursor.fetchone()
-
-    if qr_row is None:
-        cursor.close()
-        conn.close()
-        raise HTTPException(status_code=404, detail="QR code not found")
-    
-    status = qr_row[0]
-
-    if status == "unclaimed":
-        cursor.close()
-        conn.close()
-        return{"status":"unclaimed"}
-    
-    if status == "discarded":
-        cursor.close()
-        conn.close()
-        return{"status":"discarded"}
-    
-    #status == claimed => pull info 
-    
-    cursor.execute(
-        """
-        SELECT room_id, item_name, date_added, fridge_id
-        FROM items
-        WHERE qr_id = %s AND date_removed IS NULL;
-        """,
-        (qr_id,)
-    )
-    item_row = cursor.fetchone() #fetchone take one row at once, fetchall take all
-    cursor.close()
-    conn.close()
-
-    if item_row is None:
-        #claimed QR but no items attached: rare case
-        raise HTTPException(status_code=500, detail="Data inconsistency: claimed QR with no active item")
-    
-    room_id, item_name, date_added, fridge_id = item_row
-
-     #calculate how many days it's been stored
-    days_stored = (datetime.now() - date_added).days
-
-    return {
-        "status": "claimed",
-        "room_id": room_id,
-        "item_name": item_name,
-        "date_added": date_added,
-        "days_stored": days_stored,
-        "fridge_id": fridge_id
-    }
-
-# --- Remove endpoint ---
 class RemoveRequest(BaseModel):
-    qr_id: str
+    item_id: int
+
 
 @app.post("/api/remove")
 def remove_item(data: RemoveRequest):
@@ -386,47 +336,66 @@ def remove_item(data: RemoveRequest):
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT item_id FROM items WHERE qr_id = %s AND date_removed IS NULL;",
-        (data.qr_id,)
+        "SELECT item_id FROM items WHERE item_id = %s AND date_removed IS NULL;",
+        (data.item_id,)
     )
-    item_row = cursor.fetchone()
-
-    if item_row is None:
+    if cursor.fetchone() is None:
         cursor.close()
         conn.close()
-        raise HTTPException(status_code=404, detail="No active item found for this QR code")
+        raise HTTPException(status_code=404, detail="No active item found with this ID")
 
-    item_id = item_row[0]
-
-    cursor.execute("UPDATE items SET date_removed = NOW() WHERE item_id = %s;", (item_id,))
-    cursor.execute("UPDATE qr_codes SET status = 'discarded' WHERE qr_id = %s;", (data.qr_id,))
-
+    cursor.execute("UPDATE items SET date_removed = NOW() WHERE item_id = %s;", (data.item_id,))
     conn.commit()
     cursor.close()
     conn.close()
 
-    return {"success": True, "message": "Item removed, QR code discarded"}
+    return {"success": True, "message": "Item removed"}
 
 
-# Public Inventory endpoint
-# what there: read-only mode / filter for each fridge view 
-# / return only date_removed NULL items
-# / return item_name / date_added / fridge_id / days_stored - room_id is private 
-# / sorted by oldest first 
+@app.get("/api/fridge-items")
+def get_fridge_items(environment_id: int, fridge_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
 
-#SECTION 9: RETROFIT - INVENTORY 
+    cursor.execute(
+        """
+        SELECT item_id, room_id, item_name, date_added
+        FROM items
+        WHERE environment_id = %s AND fridge_id = %s AND date_removed IS NULL
+        ORDER BY date_added ASC;
+        """,
+        (environment_id, fridge_id)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    items = []
+    for item_id, room_id, item_name, date_added in rows:
+        days_stored = (datetime.now() - date_added).days
+        items.append({
+            "item_id": item_id,
+            "room_id": room_id,
+            "item_name": item_name,
+            "days_stored": days_stored
+        })
+
+    return {"items": items}
+
+
+# ---------- Admin inventory view (all items, room_id hidden) ----------
 @app.get("/api/inventory")
-#THIS function take in fridge_id and show the fridge filtered 
 def get_inventory(
     environment_id: int,
     fridge_id: Optional[int] = None,
-    admin_id: int = Depends(get_current_admin)):
+    admin_id: int = Depends(get_current_admin)
+):
     conn = get_connection()
     cursor = conn.cursor()
 
     check_admin_access(cursor, admin_id, environment_id)
 
-    if fridge_id is not None: #when explicitly stated which fridge --> filter
+    if fridge_id is not None:
         cursor.execute(
             """
             SELECT item_name, date_added, fridge_id
@@ -434,7 +403,7 @@ def get_inventory(
             WHERE environment_id = %s AND date_removed IS NULL AND fridge_id = %s
             ORDER BY date_added ASC;
             """,
-            (environment_id, fridge_id,)
+            (environment_id, fridge_id)
         )
     else:
         cursor.execute(
@@ -463,11 +432,10 @@ def get_inventory(
 
     return {"items": items}
 
-#SECTION 10: RETROFIT - FRIDGE FULL RANKING
+
+# ---------- Fridge-full ranking ----------
 @app.get("/api/fridge-full-ranking")
-def fridge_full_ranking(environment_id: int, 
-                        fridge_id: int, 
-                        admin_id: int = Depends (get_current_admin)):
+def fridge_full_ranking(environment_id: int, fridge_id: int, admin_id: int = Depends(get_current_admin)):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -479,13 +447,12 @@ def fridge_full_ranking(environment_id: int,
         FROM items
         WHERE environment_id = %s AND fridge_id = %s AND date_removed IS NULL;
         """,
-        (environment_id, fridge_id,)
+        (environment_id, fridge_id)
     )
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
 
-    #group by room_id: count items (x) and sum days stored (T)
     room_data = {}
     for room_id, date_added in rows:
         days = (datetime.now() - date_added).days
@@ -499,8 +466,7 @@ def fridge_full_ranking(environment_id: int,
         x = data["x"]
         T = data["T"]
         y = (88 / x) + (12 * x)
-        point = (y/100) * T
-
+        point = (y / 100) * T
         ranking.append({
             "room_id": room_id,
             "item_count": x,
@@ -508,16 +474,12 @@ def fridge_full_ranking(environment_id: int,
             "point": round(point, 2)
         })
 
-    # Sort highest point (worst offender) first
     ranking.sort(key=lambda r: r["point"], reverse=True)
-
     return {"fridge_id": fridge_id, "ranking": ranking}
 
-# SECTION 11: RETROFIT - FRIDGE FULL RANKING 
-# check aging item + trigger + whatsapp message 
 
+# ---------- Aging check / WhatsApp alerts ----------
 def send_whatsapp_for_environment_check():
-    from notifications import send_whatsapp_alert
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -535,6 +497,7 @@ def send_whatsapp_for_environment_check():
             WHERE items.environment_id = %s
             AND items.date_removed IS NULL
             AND items.notified = false
+            AND rooms.phone_number IS NOT NULL
             AND items.date_added < NOW() - (%s || ' days')::INTERVAL;
             """,
             (environment_id, threshold)
@@ -549,8 +512,10 @@ def send_whatsapp_for_environment_check():
                 cursor.execute("UPDATE items SET notified = true WHERE item_id = %s;", (item_id,))
 
             all_results.append({
-                "environment_id": environment_id, "item_id": item_id,
-                "item_name": item_name, "sent": send_result["success"]
+                "environment_id": environment_id,
+                "item_id": item_id,
+                "item_name": item_name,
+                "sent": send_result["success"]
             })
 
     conn.commit()
@@ -558,75 +523,12 @@ def send_whatsapp_for_environment_check():
     conn.close()
     return all_results
 
+
 @app.post("/api/run-aging-check")
 def run_aging_check(request: Request):
     auth_header = request.headers.get("authorization")
-    if auth_header != f"Bearer {CRON_SECRET}":
+    if auth_header != "Bearer " + str(CRON_SECRET):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     results = send_whatsapp_for_environment_check()
     return {"results": results}
-
-
-#SECTION: GET ALL OF MY ENVIRONMENTS
-@app.get("/api/environments/mine")
-def list_my_environments(admin_id: int = Depends (get_current_admin)):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT environments.environment_id, environments.name, environments.notification_threshold_days
-        FROM environments
-        JOIN environment_admins ON environments.environment_id = environment_admins.environment_id
-        WHERE environment_admins.admin_id = %s
-        ORDER BY environments.environment_id ASC;
-        """,
-        (admin_id,)
-    )
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    environments = []
-    for environment_id, name, threshold in rows:
-        environments.append({
-            "environment_id": environment_id,
-            "name": name,
-            "notification_threshold_days": threshold
-        })
-
-    return {"environments": environments}
-
-import secrets
-
-class GenerateQRRequest(BaseModel):
-    quantity: int
-
-@app.post("/api/environments/{environment_id}/qr-codes/generate")
-def generate_qr_codes(environment_id: int, data: GenerateQRRequest, admin_id: int = Depends(get_current_admin)):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    check_admin_access(cursor, admin_id, environment_id)
-
-    if data.quantity < 1 or data.quantity > 100:
-        cursor.close()
-        conn.close()
-        raise HTTPException(status_code=400, detail="Quantity must be between 1 and 100")
-
-    generated_ids = []
-
-    for _ in range(data.quantity):
-        new_qr_id = secrets.token_urlsafe(6)  # short random unique string
-        cursor.execute(
-            "INSERT INTO qr_codes (qr_id, status, environment_id) VALUES (%s, 'unclaimed', %s);",
-            (new_qr_id, environment_id)
-        )
-        generated_ids.append(new_qr_id)
-
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-    return {"success": True, "qr_ids": generated_ids}
