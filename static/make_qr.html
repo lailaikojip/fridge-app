@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<div id="qr1"></div>
+<div id="qr2"></div>
+<script>
+new QRCode(document.getElementById("qr1"), {
+  text: "https://fridge-app-gilt.vercel.app/static/fridge.html?fridge=1&env=3",
+  width: 300,
+  height: 300
+});
+new QRCode(document.getElementById("qr2"), {
+  text: "https://fridge-app-gilt.vercel.app/static/fridge.html?fridge=2&env=3",
+  width: 300,
+  height: 300
+});
+</script>
+</body>
+</html>
