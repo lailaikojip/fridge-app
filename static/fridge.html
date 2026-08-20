@@ -80,7 +80,7 @@
     }
 
     async function addItem() {
-      var roomId = document.getElementById("roomId").value.trim();
+      var roomId = document.getElementById("roomId").value.trim().toUpperCase();
       var itemName = document.getElementById("itemName").value.trim();
       var messageEl = document.getElementById("addMessage");
 
@@ -106,6 +106,8 @@
         document.getElementById("roomId").value = "";
         document.getElementById("itemName").value = "";
         loadItems();
+      } else if (response.status === 400 && data.detail === "Room ID not found in this environment") {
+        messageEl.textContent = "That room ID doesn't exist. Please check and enter it again.";
       } else {
         messageEl.textContent = "Error: " + data.detail;
       }
